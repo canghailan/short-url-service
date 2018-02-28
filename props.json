@@ -1,0 +1,13 @@
+{
+    "port": "80",
+    "minShortIdLength": 6,
+    "cache": 8192,
+    "redis": "redis://:[password]@[host]/[database]",
+    "mysql": {
+        "connectionLimit": 10,
+        "host": "[host]",
+        "user": "[user]",
+        "password": "[password]",
+        "database": "[database]"
+    }
+}
