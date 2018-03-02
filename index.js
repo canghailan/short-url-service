@@ -115,51 +115,66 @@ async function putURL(mapping) {
     return mapping;
 }
 
-async function get(request, response) {
-    let parsed = url.parse(request.url);
+async function get(context) {
+    let parsed = url.parse(context.request.url);
     let path = parsed.pathname.substring(1);
     let location = await getURL(path);
 
     if (location) {
-        response.writeHead(302, {
+        context.response.writeHead(302, {
             'Location': location
         });
-        response.end();
     } else {
-        response.statusCode = 404;
-        response.end(`${request.method} ${request.url}`);
+        context.response.statusCode = 404;
+        context.response.write(`${request.method} ${request.url}`);
     }
-
-    return arguments;
+    return context;
 }
 
-async function put(request, response) {
-    let body = await readRequestBody(request);
+async function put(context) {
+    let body = await readRequestBody(context.request);
     let list = JSON.parse(body.toString('utf-8'));
     let result = await Promise.all(list.map(putURL));
 
-    response.writeHead(200, { 'Content-Type': 'application/json' });
-    response.end(JSON.stringify(result, ['path', 'url', 'error'], 2));
+    context.response.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+    });
+    context.response.write(JSON.stringify(result, ['path', 'url', 'error'], 2));
+    return context;
+}
 
-    return arguments;
+async function options(context) {
+    context.response.writeHead(200, {
+        'Content-Type': 'text/plain',
+        'Content-Length': 0,
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'OPTIONS, GET, POST',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Max-Age': 86400,
+    });
+    return context;
 }
 
 const router = {
     'GET': get,
-    'POST': put
+    'POST': put,
+    'OPTIONS': options
 };
 
 http.createServer(function (request, response) {
     console.log(`${request.method} ${request.url}`);
     let handler = router[request.method];
     if (handler) {
-        handler(request, response).catch(function (e) {
+        handler({ request, response }).then(function (context) {
+            response.end();
+        }, (e) => {
             console.error(e);
             response.statusCode = 500;
             response.end();
         });
     } else {
-        response.statusCode = 404;
+        response.statusCode = 405;
         response.end();
     }
 }).listen(port);
